@@ -1,0 +1,210 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TradeDirection {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  WIN
+  LOSS
+  BREAKEVEN
+}
+
+enum AssetClass {
+  FOREX
+  GOLD
+  CRYPTO
+  STOCK
+  INDEX
+  OTHER
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  INCOMPLETE
+  TRIALING
+}
+
+enum NotificationType {
+  SYSTEM
+  TRADE
+  AI
+  SUBSCRIPTION
+}
+
+model User {
+  id                String         @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String         @unique
+  passwordHash      String
+  avatarUrl         String?
+  tradingExperience String?
+  defaultCurrency   String         @default("USD")
+  defaultRisk       Float          @default(1)
+  timezone          String         @default("UTC")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  trades            Trade[]
+  strategies        Strategy[]
+  subscription      Subscription?
+  aiAnalyses        AIAnalysis[]
+  notifications     Notification[]
+}
+
+model Trade {
+  id                  String         @id @default(cuid())
+  userId              String
+
+  symbol              String
+  assetClass          AssetClass
+  direction           TradeDirection
+  status              TradeStatus    @default(OPEN)
+
+  entryDate           DateTime
+  exitDate            DateTime?
+  session             String?
+  timeframe           String?
+
+  entryPrice          Float
+  stopLoss            Float
+  takeProfit          Float?
+  exitPrice           Float?
+
+  riskPercent         Float
+  riskAmount          Float?
+  positionSize        Float?
+  rMultiple           Float?
+
+  pnl                 Float?
+  fees                Float          @default(0)
+  netPnl              Float?
+
+  strategyId          String?
+  setup               String?
+  marketCondition     String?
+
+  emotionBefore       String?
+  emotionDuring       String?
+  emotionAfter        String?
+  confidence          Int?
+  disciplineScore     Int?
+
+  entryReason         String?
+  exitReason          String?
+  mistake             String?
+  lesson              String?
+  notes               String?
+
+  beforeScreenshotUrl  String?
+  afterScreenshotUrl   String?
+
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategy             Strategy?      @relation(fields: [strategyId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, entryDate])
+  @@index([userId, symbol])
+  @@index([userId, status])
+  @@index([strategyId])
+}
+
+model Strategy {
+  id          String    @id @default(cuid())
+  userId      String
+
+  name        String
+  description String?
+  rules       String?
+  market      String?
+  timeframes  String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trades      Trade[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  user                  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model AIAnalysis {
+  id          String   @id @default(cuid())
+  userId      String
+
+  type        String
+  periodStart DateTime?
+  periodEnd   DateTime?
+
+  summary     String
+  insights    String?
+  rawResponse String?
+
+  createdAt   DateTime @default(now())
+
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, type])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+
+  type      NotificationType
+  title     String
+  message   String
+  read      Boolean          @default(false)
+
+  createdAt DateTime         @default(now())
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
